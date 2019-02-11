@@ -1,0 +1,7 @@
+*.dat
+*.out
+.*
+tools/
+*.class
+!.gitignore
+out/
