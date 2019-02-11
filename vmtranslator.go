@@ -38,13 +38,13 @@ const (
 )
 
 var (
-	jl       int // jump label index
 	vmName   string
 	errFound int
 )
 
+// pointers to mem indexes
 var P = map[string]int{
-	SP:       0,
+	SP:       0, // stack pointer
 	local:    1, // LCL
 	argument: 2, // ARG
 	this:     3,
@@ -59,11 +59,12 @@ type cmdStruct struct {
 }
 
 type asmBuilder struct {
+	jumpIndex int // jump label index
 	strings.Builder
 }
 
 func newAsmBuilder() asmBuilder {
-	return asmBuilder{strings.Builder{}}
+	return asmBuilder{0, strings.Builder{}}
 }
 
 func main() {
@@ -78,7 +79,8 @@ func main() {
 		log.Fatal(e)
 	}
 
-	bootstrap()
+	b := newAsmBuilder()
+	bootstrap(&b)
 
 	var files int
 	lines := 0
@@ -87,39 +89,40 @@ func main() {
 		for _, filename := range filenames {
 			files++
 			file, _ := os.Open(filename)
-			lines += translateFile(file)
+			lines += translateFile(&b, file)
 		}
 	} else {
 		files = 1
 		file, _ := os.Open(path)
-		lines = translateFile(file)
+		lines = translateFile(&b, file)
 	}
 
+	fmt.Print(b.String())
 	log.Printf("Total %d lines in %d VM files processed.\n", lines, files)
 	os.Exit(errFound)
 }
 
-func bootstrap() {
+func bootstrap(b *asmBuilder) {
 	log.Println("Compiling bootstrap code")
 	// set SP
-	b := newAsmBuilder()
 	if comments {
 		b.c("// bootstrap section")
 	}
 	b.a(256)
 	b.c("D=A")
-	b.a(0)
+	b.a(SP)
 	b.c("M=D")
-	//// then we zero M[1..15] just in case on repeated run in simulator
-	b.a(1)
+	//// then we zero local, arg, this and that
+	b.a(local)
 	b.c("M=0")
-	b.a(2)
+	b.a(argument)
 	b.c("M=0")
-	b.c("@3")
+	b.a(this)
 	b.c("M=0")
-	b.a(4)
+	b.a(that)
 	b.c("M=0")
 
+	// push 5 elements to stack
 	b.c("D=0")
 	b.pushD()
 	b.pushD()
@@ -128,10 +131,9 @@ func bootstrap() {
 	b.pushD()
 	b.a("Sys.init")
 	b.c("0;JMP")
-	fmt.Println(b.String())
 }
 
-func translateFile(file *os.File) int {
+func translateFile(b *asmBuilder, file *os.File) int {
 	log.Println("Compiling " + file.Name())
 	scanner := bufio.NewScanner(file)
 	//compile := regexp.MustCompile(`.*/(\w+)\.vm`)
@@ -148,12 +150,12 @@ func translateFile(file *os.File) int {
 		}
 		if strings.HasPrefix(s, "//") {
 			if comments {
-				fmt.Println(s)
+				b.c(s)
 			}
 			continue
 		}
 		if comments {
-			fmt.Println("// " + s)
+			b.c("// " + s)
 		}
 		c, e := parse(s)
 		if e != nil {
@@ -161,13 +163,11 @@ func translateFile(file *os.File) int {
 			errFound++
 			continue
 		}
-		asm, e := generate(c)
-		if e != nil {
+		if e := generate(b, c); e != nil {
 			log.Printf("Line %d %s: '%s'\n", line, e, s)
 			errFound++
 			continue
 		}
-		fmt.Println(asm)
 	}
 	log.Printf("%d lines processed.\n", line)
 	return line
@@ -204,7 +204,10 @@ func parse(s string) (cmdStruct, error) {
 	return cmdStruct{}, errors.New("parsing")
 }
 
-// asm A-fn helper. if arg is int adds "@arg\n" otherwise adds from as Pointer (if exist) or as it is (variable ref)
+// A command
+// if arg is int adds "@arg"
+// if str arg is in  P{} add it as pointer val
+// otherwise just add as it is (var ref)
 func (b *asmBuilder) a(x interface{}) (int, error) {
 	switch v := x.(type) {
 	case int:
@@ -221,7 +224,9 @@ func (b *asmBuilder) a(x interface{}) (int, error) {
 	}
 }
 
-// asm C-fn helper. with one arg just adds '\n', with more formats in Sprintf
+// B command
+// with one arg just adds
+// with more formats in Sprintf
 func (b *asmBuilder) c(s ...interface{}) (int, error) {
 	format := s[0].(string) + "\n"
 	if len(s) == 1 {
@@ -229,6 +234,17 @@ func (b *asmBuilder) c(s ...interface{}) (int, error) {
 	} else {
 		return b.WriteString(fmt.Sprintf(format, s[1:]...))
 	}
+}
+
+// if no arg, returns next jump label
+// otherwise, outputs asm label
+func (b *asmBuilder) l(s ...string) (string, error) {
+	if len(s) == 0 {
+		b.jumpIndex++
+		return "JUMP" + strconv.Itoa(b.jumpIndex), nil
+	}
+	_, e := b.WriteString("(" + s[0] + ")\n")
+	return "", e
 }
 
 // pop from stack to M register
@@ -246,13 +262,12 @@ func (b *asmBuilder) popD() (int, error) {
 	return b.WriteString("@0\nM=M-1\nA=M\nD=M\n")
 }
 
-func generate(c cmdStruct) (string, error) {
-	b := newAsmBuilder()
+func generate(b *asmBuilder, c cmdStruct) error {
 	switch c.cmd {
 	case C_Call:
 		// push ret address (see below)
-		jl++
-		b.c("@J%d", jl)
+		label, _ := b.l()
+		b.a(label)
 		b.c("D=A")
 		b.pushD()
 		// push LCL
@@ -272,7 +287,7 @@ func generate(c cmdStruct) (string, error) {
 		b.c("D=M")
 		b.pushD()
 		// ARG = SP - (n of args) - 5
-		b.a(0)
+		b.a(SP)
 		b.c("D=M")
 		b.a(5)
 		b.c("D=D-A")
@@ -281,7 +296,7 @@ func generate(c cmdStruct) (string, error) {
 		b.a(argument)
 		b.c("M=D")
 		// LCL= SP
-		b.a(0)
+		b.a(SP)
 		b.c("D=M")
 		b.a(local)
 		b.c("M=D")
@@ -289,7 +304,7 @@ func generate(c cmdStruct) (string, error) {
 		b.a(c.arg1)
 		b.c("0;JMP")
 		// ret label
-		b.c("(J%d)", jl)
+		b.l(label)
 
 	case C_Return:
 		// FRAME = LCL (temp0)
@@ -311,7 +326,7 @@ func generate(c cmdStruct) (string, error) {
 		// SP = *ARG + 1
 		b.c("A=A+1")
 		b.c("D=A")
-		b.a(0) // SP
+		b.a(SP)
 		b.c("M=D")
 		// THAT = * (FRAME - 1)
 		b.a(temp)
@@ -369,25 +384,25 @@ func generate(c cmdStruct) (string, error) {
 		// to receiver memory region
 		switch c.arg1 {
 		case "this", "that", "local", "argument":
-			b.c("@%d", P[c.arg1])
+			b.a(c.arg1)
 			b.c("D=M") // diff
-			b.c("@%d", c.arg2)
+			b.a(c.arg2)
 			b.c("D=D+A")
 			b.a(13)
 			b.c("M=D")
 			b.popD()
-			b.c("@13")
+			b.a(13)
 			b.c("A=M")
 			b.c("M=D")
 		case "temp":
-			b.c("@%d", P[c.arg1])
+			b.a(c.arg1)
 			b.c("D=A") // diff
-			b.c("@%d", c.arg2)
+			b.a(c.arg2)
 			b.c("D=D+A")
-			b.c("@13")
+			b.a(13)
 			b.c("M=D")
 			b.popD()
-			b.c("@13")
+			b.a(13)
 			b.c("A=M")
 			b.c("M=D")
 		case "static":
@@ -402,29 +417,29 @@ func generate(c cmdStruct) (string, error) {
 			case 1:
 				addr = P["that"]
 			default:
-				return "", errors.New("wrong pointer")
+				return errors.New("wrong pointer")
 			}
 			b.popD()
-			b.c("@%d", addr)
+			b.a(addr)
 			b.c("M=D")
 		default:
-			return "", errors.New("wrong memory region")
+			return errors.New("wrong memory region")
 		}
 	case C_Push:
 		switch c.arg1 {
 		case "constant":
-			b.c("@%d", c.arg2)
+			b.a(c.arg2)
 			b.c("D=A")
 		case "this", "that", "local", "argument":
-			b.c("@%d", P[c.arg1])
+			b.a(c.arg1)
 			b.c("D=M") // diff
-			b.c("@%d", c.arg2)
+			b.a(c.arg2)
 			b.c("A=A+D")
 			b.c("D=M")
 		case "temp":
-			b.c("@%d", P[c.arg1])
+			b.a(c.arg1)
 			b.c("D=A") // diff
-			b.c("@%d", c.arg2)
+			b.a(c.arg2)
 			b.c("A=A+D")
 			b.c("D=M")
 		case "pointer": // pointer 0 -> this, pointer 1 -> that
@@ -435,15 +450,15 @@ func generate(c cmdStruct) (string, error) {
 			case 1:
 				addr = P["that"]
 			default:
-				return "", errors.New("wrong pointer")
+				return errors.New("wrong pointer")
 			}
-			b.c("@%d", addr)
+			b.a(addr)
 			b.c("D=M")
 		case "static":
 			b.c("@%s.%d", vmName, c.arg2)
 			b.c("D=M")
 		default:
-			return "", errors.New("wrong memory region")
+			return errors.New("wrong memory region")
 		}
 		b.pushD()
 	case C_Arithmetic: // after pop M stands for X, D stands for Y so  'x-y'  == 'm-y' i.e. subtract from later element on stack
@@ -474,8 +489,8 @@ func generate(c cmdStruct) (string, error) {
 			b.popD()
 			b.popM()
 			b.c("D=M-D")
-			jl++
-			b.c("@J%d", jl)
+			labelA, _ := b.l()
+			b.a(labelA)
 			switch c.arg1 {
 			case "eq":
 				b.c("D;JEQ")
@@ -485,18 +500,18 @@ func generate(c cmdStruct) (string, error) {
 				b.c("D;JLT")
 			}
 			b.c("D=0")
-			b.c("@J%d", jl+1)
+			labelB, _ := b.l()
+			b.a(labelB)
 			b.c("0;JMP")
-			b.c("(J%d)", jl)
+			b.l(labelA)
 			b.c("D=-1")
-			b.c("(J%d)", jl+1)
-			jl++
+			b.l(labelB)
 		default:
-			return "", errors.New("not implemented")
+			return errors.New("not implemented")
 		}
 		b.pushD()
 	default:
-		return "", errors.New("not implemented")
+		return errors.New("not implemented")
 	}
-	return b.String(), nil
+	return nil
 }
