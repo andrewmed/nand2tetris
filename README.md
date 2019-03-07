@@ -2,22 +2,21 @@
 
 
 ## CPU.hdl and Computer.hdl
-Main hardware parts of a computer
+Main hardware parts of a computer, ran HACK machine code
 - Implement register-based "chain of computation"
 
+## HackAssembler (java)
+Translates assembly (ASM) to machine code (HACK), double pass
 
-## HackAssembler.java
-Translates assembley to machine code, mostly just line by line (except handling labels, where double pass is needed)
-
-## vmtranslator.go
-Translates VM code to assembler
-- Implements stack based computations (translates to a "flat" assembly code)
+## vmtranslator (go)
+Translates (VM) code to assembly (ASM), single pass
+- Implements stack based computations
 - Implements function call conventions
+- Does "linking" 
+
+## compiler (go)
+Compiles high level (JACK) code into intermediate representation (VM), tree parsing
 
 All parts can be tested in Hardware emulator and CPU emulator by the link above
 
-
-
 Copyright: MIT Andmed, 2019 (c)
-
-

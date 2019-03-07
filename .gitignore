@@ -1,6 +1,7 @@
 *.dat
 *.out
 .*
-*/
 *.class
 !.gitignore
+projects/
+tools/
