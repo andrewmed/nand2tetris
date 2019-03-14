@@ -153,13 +153,12 @@ A=M
 0;JMP
 `
 
-	b := NewAsmBuilder()
+	b := VMTranslator{}
 	reader := strings.NewReader(in)
 	scanner := bufio.NewScanner(reader)
-	TranslateFile(&b, scanner)
+	translate(&b, scanner)
 
 	if b.String() != out {
 		t.Fatalf("want: %s, got: %s", out, b.String())
 	}
 }
-

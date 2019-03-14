@@ -8,28 +8,28 @@ import (
 )
 
 const (
-	_true = "true"
-	_false = "false"
-	_null = "null"
-	_this = "this"
-	_static = "static"
-	_field = "field"
+	_true        = "true"
+	_false       = "false"
+	_null        = "null"
+	_this        = "this"
+	_static      = "static"
+	_field       = "field"
 	_constructor = "constructor"
-	_function = "function"
-	_method = "method"
-	_let = "let"
-	_if = "if"
-	_else = "else"
-	_while = "while"
-	_do = "do"
-	_return = "return"
-	_var = "var"
-	_int = "int"
-	_char = "char"
-	_boolean = "boolean"
+	_function    = "function"
+	_method      = "method"
+	_let         = "let"
+	_if          = "if"
+	_else        = "else"
+	_while       = "while"
+	_do          = "do"
+	_return      = "return"
+	_var         = "var"
+	_int         = "int"
+	_char        = "char"
+	_boolean     = "boolean"
 )
 
-func (cr *compiler) code(token interface{})  { // fixme double cases
+func (cr *compiler) code(token interface{}) { // fixme double cases
 	switch t := token.(type) {
 	case ifStmtToken:
 		ifelse := cr.nextLabel("if_else")
@@ -159,7 +159,7 @@ func (cr *compiler) code(token interface{})  { // fixme double cases
 		case '=':
 			cr.line("eq")
 		default:
-			fail(cr.r,"unsupported expression operation %c", t.op)
+			fail(cr.r, "unsupported expression operation %c", t.op)
 		}
 	case intTerm:
 		cr.pushConst(t.int)
@@ -204,14 +204,14 @@ func (cr compiler) line(s string) {
 	if s == "" {
 		return
 	}
-	io.WriteString(cr.w, s + "\n")
+	io.WriteString(cr.w, s+"\n")
 }
 func (cr compiler) linef(s ...interface{}) {
 	if len(s) < 2 {
 		panic(0)
 	}
 	format := s[0].(string)
-	if (!strings.HasSuffix(format, "\n")) {
+	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
 	io.WriteString(cr.w, fmt.Sprintf(format, s[1:]...))
@@ -220,9 +220,8 @@ func w(s ...interface{}) string {
 	format := s[0].(string) + "\n"
 	if len(s) == 1 {
 		return format
-	} else {
-		return fmt.Sprintf(format, s[1:]...)
 	}
+	return fmt.Sprintf(format, s[1:]...)
 }
 func (cr *compiler) popLocal(i int) {
 	cr.linef("pop local %d", i)
@@ -265,7 +264,7 @@ func (cr *compiler) pushConst(i int) {
 	var s string
 	if i < 0 {
 		s = w("push constant %d", -i)
-		s +=  w("neg")
+		s += w("neg")
 	} else {
 		s = w("push constant %d", i)
 	}
@@ -274,31 +273,31 @@ func (cr *compiler) pushConst(i int) {
 func (cr *compiler) pushPointer(i int) {
 	cr.linef("push pointer %d", i)
 }
-func (cr *compiler)  pushVar(comp *compiler, name string)  {
+func (cr *compiler) pushVar(comp *compiler, name string) {
 	reg, _, i := comp.getvar(name)
 	switch reg {
-	case r_local:
+	case regLocal:
 		cr.pushLocal(i)
-	case r_arg:
+	case regArg:
 		cr.pushArg(i)
-	case r_field:
+	case regField:
 		cr.pushThis(i)
-	case r_static:
+	case regStatic:
 		cr.pushStatic(i)
 	default:
 		fail(cr.r, "var undefined %s", name)
 	}
 }
-func (cr *compiler) popVar(comp *compiler, name string)  {
+func (cr *compiler) popVar(comp *compiler, name string) {
 	reg, _, i := comp.getvar(name)
 	switch reg {
-	case r_local:
+	case regLocal:
 		cr.popLocal(i)
-	case r_arg:
+	case regArg:
 		cr.popArg(i)
-	case r_field:
+	case regField:
 		cr.popThis(i)
-	case r_static:
+	case regStatic:
 		cr.popStatic(i)
 	default:
 		fail(cr.r, "var undefined %s", name)

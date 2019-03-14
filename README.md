@@ -1,4 +1,4 @@
-# Solutions for https://www.nand2tetris.org/
+# Solutions for https://www.nand2tetris.org/ ![Build status](https://travis-ci.org/andrewmed/nand2tetris.svg?branch=master) ![Go report card](https://goreportcard.com/badge/github.com/andrewmed/nand2tetris)
 
 
 ## CPU.hdl and Computer.hdl

@@ -131,7 +131,6 @@ func testExpString(t *testing.T, exp string, expected string) {
 	}
 }
 
-
 // STATEMENTS
 
 func TestParseClass(t *testing.T) {
@@ -139,6 +138,7 @@ func TestParseClass(t *testing.T) {
 	cr := testcompiler("class Foo { field int bar, baz; static int baq; method void Bar() {} }", &buf)
 	cr.parseClass()
 }
+
 //
 func TestParseFnBody(t *testing.T) {
 	buf := bytes.Buffer{}

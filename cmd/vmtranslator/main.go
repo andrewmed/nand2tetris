@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"git.andmed.org/nand2tetris/vmtranslator"
 	"log"
 	"os"
 	"path/filepath"
-	"git.andmed.org/nand2tetris/vmtranslator"
 )
 
 func main() {
@@ -21,27 +20,31 @@ func main() {
 		log.Fatal(e)
 	}
 
-	b := vmtranslator.NewAsmBuilder()
+	b := vmtranslator.VMTranslator{}
 	vmtranslator.Bootstrap(&b)
 
-	var files int
-	lines := 0
+	var files, lines, exitCode int
+	var ok bool
 	if stat.IsDir() {
 		filenames, _ := filepath.Glob(path + "/*.vm")
 		for _, filename := range filenames {
 			files++
-			file, _ := os.Open(filename)
-			scanner := bufio.NewScanner(file)
-			lines += vmtranslator.TranslateFile(&b, scanner)
+			line, ok := vmtranslator.TranslateFile(&b, filename)
+			lines += line
+			if !ok {
+				exitCode = 1
+			}
+
 		}
 	} else {
 		files = 1
-		file, _ := os.Open(path)
-		scanner := bufio.NewScanner(file)
-		lines = vmtranslator.TranslateFile(&b, scanner)
+		lines, ok = vmtranslator.TranslateFile(&b, path)
+		if !ok {
+			exitCode = 1
+		}
 	}
 
 	fmt.Print(b.String())
 	log.Printf("Total %d lines in %d VM files processed.\n", lines, files)
-	os.Exit(vmtranslator.ErrFound)
+	os.Exit(exitCode)
 }

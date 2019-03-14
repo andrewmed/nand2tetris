@@ -13,7 +13,7 @@ import (
 	"strconv"
 )
 
-const PEEKBUFFER = 80
+const peekbuf = 80
 
 func readint(r *bufio.Reader) int {
 	bytes := []byte{}
@@ -140,7 +140,7 @@ func peekchar(r *bufio.Reader) byte {
 func peekliteral(r *bufio.Reader) string {
 	skiptoChar(r)
 	bytes := []byte{}
-	peek, _ := r.Peek(PEEKBUFFER)
+	peek, _ := r.Peek(peekbuf)
 	if len(peek) == 0 {
 		return ""
 	}

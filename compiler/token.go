@@ -34,20 +34,20 @@ type fnBodyToken struct {
 
 // 'let' varName ('[' expression ']')? '=' expression ';'
 type letStmtToken struct {
-	name  string
-	exp expression
+	name string
+	exp  expression
 }
 
 // 'if' '(' expression ')' '{' statements '}' ('else' '{' statements '}')?
 type ifStmtToken struct {
-	cond expression
-	ifst []interface{} // stmt
+	cond   expression
+	ifst   []interface{} // stmt
 	elsest []interface{} // stmt
 }
 
 // 'while' '(' expression ')' '{' statements '}'
 type whileStmtToken struct {
-	cond expression
+	cond  expression
 	stmts []interface{} // stmt
 }
 
@@ -98,6 +98,6 @@ type varTerm struct {
 }
 
 type unaryOpTerm struct {
-	byte // operation - ~
+	byte             // operation - ~
 	term interface{} // term
 }

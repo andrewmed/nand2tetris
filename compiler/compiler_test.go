@@ -13,7 +13,7 @@ import (
 
 func testcompiler(input string, w io.Writer) compiler {
 	r := bufio.NewReader(strings.NewReader(input))
-	cr := NewCompiler(r, w)
+	cr := newCompiler(r, w)
 	cr.class = "Test"
 	cr.addStatic(_int, "static")
 	cr.addField(_int, "field")
@@ -30,7 +30,7 @@ func TestVars(t *testing.T) {
 	c.addArg(_int, "arg_int1")
 	c.addLocal(_int, "local_int1")
 	c.addLocal(_int, "local_int2")
-	if c.localN() + c.argN() + c.fieldN() != 4 {
+	if c.localN()+c.argN()+c.fieldN() != 4 {
 		log.Fatal("var table not populated")
 	}
 	_, _, i := c.getvar("local_int2")
@@ -38,7 +38,7 @@ func TestVars(t *testing.T) {
 		log.Fatal("var table not populated")
 	}
 	c.clearlocals()
-	if c.localN() + c.argN()  != 0  {
+	if c.localN()+c.argN() != 0 {
 		log.Fatal("var table not cleared")
 	}
 }
@@ -64,10 +64,10 @@ func testParseFile(t *testing.T, name string) {
 	FAIL(e)
 
 	buf := bytes.Buffer{}
-	cr := NewCompiler(sourcereader, &buf)
+	cr := newCompiler(sourcereader, &buf)
 	cr.Compile()
 
-	if ! bytes.Equal(buf.Bytes(), codebytes) {
+	if !bytes.Equal(buf.Bytes(), codebytes) {
 		t.Fatal("file compilation failed")
 	}
 }
@@ -77,5 +77,3 @@ func FAIL(e error) {
 		panic(e)
 	}
 }
-
-

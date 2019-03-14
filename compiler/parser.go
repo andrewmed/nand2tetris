@@ -20,7 +20,7 @@ func (cr *compiler) parseClass() {
 	needchar(cr.r, '}')
 }
 
-func (cr *compiler) parseClassVar()  {
+func (cr *compiler) parseClassVar() {
 	var token varDeclToken
 	token.mod = needliteral(cr.r)
 	token.typ = needliteral(cr.r)
@@ -33,7 +33,7 @@ func (cr *compiler) parseClassVar()  {
 	cr.code(token)
 }
 
-func (cr *compiler) parseFn()  {
+func (cr *compiler) parseFn() {
 	var token fnToken
 	token.mod = needliteral(cr.r)
 	token.rettype = needliteral(cr.r)
@@ -73,7 +73,7 @@ func (cr *compiler) parseTerm() interface{} {
 		return term
 	case '"':
 		bytes, _ := cr.r.ReadBytes('"')
-		s := string(bytes[:len(bytes) - 2])
+		s := string(bytes[:len(bytes)-2])
 		term := strTerm{s}
 		return term
 	case '-', '~':
@@ -92,34 +92,34 @@ func (cr *compiler) parseLiteralTerm() interface{} {
 	s := readliteral(cr.r)
 	if s == _true || s == _false || s == _null || s == _this {
 		return keywordTerm{s}
-	} else {
-		switch peekchar(cr.r) {
-		case '.':
-			// subroutine call
-			needchar(cr.r, '.')
-			fn := readliteral(cr.r)
-			needchar(cr.r, '(')
-			exprs := cr.parseExprList()
-			needchar(cr.r, ')')
-			return subroutineTerm{
-				name:  s,
-				fn:    fn,
-				exprs: exprs,
-			}
-		case '(':
-			// subroutine call
-			needchar(cr.r, '(')
-			exprs := cr.parseExprList()
-			needchar(cr.r, ')')
-			return subroutineTerm{
-				local: true,
-				name:  cr.class,
-				fn:    s,
-				exprs: exprs,
-			}
-		default:
-			return varTerm{s}
+	}
+
+	switch peekchar(cr.r) {
+	case '.':
+		// subroutine call
+		needchar(cr.r, '.')
+		fn := readliteral(cr.r)
+		needchar(cr.r, '(')
+		exprs := cr.parseExprList()
+		needchar(cr.r, ')')
+		return subroutineTerm{
+			name:  s,
+			fn:    fn,
+			exprs: exprs,
 		}
+	case '(':
+		// subroutine call
+		needchar(cr.r, '(')
+		exprs := cr.parseExprList()
+		needchar(cr.r, ')')
+		return subroutineTerm{
+			local: true,
+			name:  cr.class,
+			fn:    s,
+			exprs: exprs,
+		}
+	default:
+		return varTerm{s}
 	}
 }
 
@@ -383,4 +383,3 @@ func prio(op byte) int {
 	}
 	return -1 // need to compile
 }
-
